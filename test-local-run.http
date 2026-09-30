@@ -3,8 +3,8 @@ POST http://localhost:1234/test/run
 Content-Type: application/json
 
 {
-  "serviceName": "{{cas-m3404-04}}",
-  "token": "{{1yY980Zb3nVLz3Ty}}",
+  "serviceName": "{{serviceName}}",
+  "token": "{{token}}",
   "ratePerSecond": 11,
   "testCount": 1200,
   "processingTimeMillis": 80000
