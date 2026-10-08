@@ -60,7 +60,7 @@ class APIController {
 
     @PostMapping("/orders/{orderId}/payment")
     fun payOrder(@PathVariable orderId: UUID, @RequestParam deadline: Long): ResponseEntity<PaymentSubmissionDto> {
-        if (!inputRateLimiter.tick()) {
+        /* if (!inputRateLimiter.tick()) {
             val retryAt = System.currentTimeMillis() + 1000
             logger.warn("Rejecting payment for order $orderId: input rate limit, retry after $retryAt")
 
@@ -68,7 +68,7 @@ class APIController {
                 .status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", retryAt.toString())
                 .build()
-        }
+        }*/
 
         val paymentId = UUID.randomUUID()
         val order = orderRepository.findById(orderId)?.let {
