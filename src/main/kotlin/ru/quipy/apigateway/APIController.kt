@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*
 import ru.quipy.common.utils.SlidingWindowRateLimiter
 import ru.quipy.orders.repository.OrderRepository
 import ru.quipy.payments.logic.OrderPayer
+import ru.quipy.payments.logic.PaymentMetrics
 import java.time.Duration
 import java.util.*
 
@@ -22,6 +23,9 @@ class APIController {
 
     @Autowired
     private lateinit var orderPayer: OrderPayer
+
+    @Autowired
+    private lateinit var paymentMetrics: PaymentMetrics
 
     @PostMapping("/users")
     fun createUser(@RequestBody req: CreateUserRequest): User {
@@ -69,6 +73,8 @@ class APIController {
                 .header("Retry-After", retryAt.toString())
                 .build()
         }*/
+
+        paymentMetrics.submitted()
 
         val paymentId = UUID.randomUUID()
         val order = orderRepository.findById(orderId)?.let {
