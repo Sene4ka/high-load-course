@@ -15,6 +15,14 @@ class PaymentMetrics(
         ).increment()
     }
 
+    fun rejected() {
+        registry.counter(
+            "payment_flow_total",
+            "stage", "submit",
+            "outcome", "rejected",
+        ).increment()
+    }
+
     fun processedSuccess() {
         registry.counter(
             "payment_flow_total",
