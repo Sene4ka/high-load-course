@@ -672,7 +672,7 @@
           "id": 200,
           "options": {
             "legend": {
-              "calcs": ["max", "lastNotNull"],
+              "calcs": ["max", "mean", "lastNotNull"],
               "displayMode": "table",
               "placement": "right",
               "showLegend": true
@@ -690,7 +690,7 @@
               "refId": "A"
             }
           ],
-          "title": "Payment flow (submit vs process)",
+          "title": "Payment flow (submitted vs processed)",
           "type": "timeseries"
         }
       ],
