@@ -12,6 +12,7 @@ import ru.quipy.payments.logic.OrderPayer
 import ru.quipy.payments.logic.PaymentMetrics
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.RejectedExecutionException
 
 @RestController
 class APIController {
@@ -64,7 +65,8 @@ class APIController {
 
     @PostMapping("/orders/{orderId}/payment")
     fun payOrder(@PathVariable orderId: UUID, @RequestParam deadline: Long): ResponseEntity<PaymentSubmissionDto> {
-        if (!inputRateLimiter.tick()) {
+
+        /*if (!inputRateLimiter.tick()) {
             paymentMetrics.rejected()
 
             val retryAt = System.currentTimeMillis() + 1000
@@ -74,7 +76,7 @@ class APIController {
                 .status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", retryAt.toString())
                 .build()
-        }
+        }*/
 
         paymentMetrics.submitted()
 
@@ -84,8 +86,17 @@ class APIController {
             it
         } ?: throw IllegalArgumentException("No such order $orderId")
 
-        val createdAt = orderPayer.processPayment(orderId, order.price, paymentId, deadline)
-        return ResponseEntity.ok(PaymentSubmissionDto(createdAt, paymentId))
+        try {
+            val createdAt = orderPayer.processPayment(orderId, order.price, paymentId, deadline)
+            return ResponseEntity.ok(PaymentSubmissionDto(createdAt, paymentId))
+        } catch (e: RejectedExecutionException) {
+            paymentMetrics.rejected()
+            val retryAt = System.currentTimeMillis() + 1000
+            return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", retryAt.toString())
+                .build()
+        }
     }
 
     class PaymentSubmissionDto(
