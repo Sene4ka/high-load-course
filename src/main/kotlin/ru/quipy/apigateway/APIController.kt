@@ -12,6 +12,7 @@ import ru.quipy.payments.logic.OrderPayer
 import ru.quipy.payments.logic.PaymentMetrics
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.RejectedExecutionException
 
 @RestController
 class APIController {
@@ -64,6 +65,7 @@ class APIController {
 
     @PostMapping("/orders/{orderId}/payment")
     fun payOrder(@PathVariable orderId: UUID, @RequestParam deadline: Long): ResponseEntity<PaymentSubmissionDto> {
+
         if (!inputRateLimiter.tick()) {
             paymentMetrics.rejected()
 
@@ -95,6 +97,6 @@ class APIController {
 }
 
 private val inputRateLimiter = SlidingWindowRateLimiter(
-    rate = 1,
+    rate = 110,
     window = Duration.ofSeconds(1),
 )

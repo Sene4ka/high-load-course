@@ -692,6 +692,37 @@
           ],
           "title": "Payment flow (submitted vs processed)",
           "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 20 },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 290 },
+          "id": 201,
+          "options": {
+            "legend": {
+              "calcs": ["last", "max", "mean"],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true
+            },
+            "tooltip": { "mode": "single" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "payment_executor_queue_size",
+              "legendFormat": "queue size",
+              "refId": "A"
+            }
+          ],
+          "title": "Payment executor queue size",
+          "type": "timeseries"
         }
       ],
       "title": "General",
