@@ -66,7 +66,7 @@ class APIController {
     @PostMapping("/orders/{orderId}/payment")
     fun payOrder(@PathVariable orderId: UUID, @RequestParam deadline: Long): ResponseEntity<PaymentSubmissionDto> {
 
-        /*if (!inputRateLimiter.tick()) {
+        if (!inputRateLimiter.tick()) {
             paymentMetrics.rejected()
 
             val retryAt = System.currentTimeMillis() + 1000
@@ -76,7 +76,7 @@ class APIController {
                 .status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", retryAt.toString())
                 .build()
-        }*/
+        }
 
         paymentMetrics.submitted()
 
@@ -86,17 +86,8 @@ class APIController {
             it
         } ?: throw IllegalArgumentException("No such order $orderId")
 
-        try {
-            val createdAt = orderPayer.processPayment(orderId, order.price, paymentId, deadline)
-            return ResponseEntity.ok(PaymentSubmissionDto(createdAt, paymentId))
-        } catch (e: RejectedExecutionException) {
-            paymentMetrics.rejected()
-            val retryAt = System.currentTimeMillis() + 1000
-            return ResponseEntity
-                .status(HttpStatus.TOO_MANY_REQUESTS)
-                .header("Retry-After", retryAt.toString())
-                .build()
-        }
+        val createdAt = orderPayer.processPayment(orderId, order.price, paymentId, deadline)
+        return ResponseEntity.ok(PaymentSubmissionDto(createdAt, paymentId))
     }
 
     class PaymentSubmissionDto(
@@ -106,6 +97,6 @@ class APIController {
 }
 
 private val inputRateLimiter = SlidingWindowRateLimiter(
-    rate = 1,
+    rate = 110,
     window = Duration.ofSeconds(1),
 )
