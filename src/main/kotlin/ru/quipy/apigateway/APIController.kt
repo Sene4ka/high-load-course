@@ -7,12 +7,15 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import ru.quipy.common.utils.SlidingWindowRateLimiter
+import ru.quipy.common.utils.TokenBucketRateLimiter
+
 import ru.quipy.orders.repository.OrderRepository
 import ru.quipy.payments.logic.OrderPayer
 import ru.quipy.payments.logic.PaymentMetrics
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.TimeUnit
 
 @RestController
 class APIController {
@@ -86,8 +89,18 @@ class APIController {
             it
         } ?: throw IllegalArgumentException("No such order $orderId")
 
-        val createdAt = orderPayer.processPayment(orderId, order.price, paymentId, deadline)
-        return ResponseEntity.ok(PaymentSubmissionDto(createdAt, paymentId))
+        //val createdAt = orderPayer.processPayment(orderId, order.price, paymentId, deadline)
+        //return ResponseEntity.ok(PaymentSubmissionDto(createdAt, paymentId))
+        return try {
+            val createdAt = orderPayer.processPayment(orderId, order.price, paymentId, deadline)
+            ResponseEntity.ok(PaymentSubmissionDto(createdAt, paymentId))
+        } catch (e: RejectedExecutionException) {
+            paymentMetrics.rejected()
+            val retryAt = System.currentTimeMillis() + 2000
+            ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", retryAt.toString())
+                .build()
+        }
     }
 
     class PaymentSubmissionDto(
@@ -96,7 +109,18 @@ class APIController {
     )
 }
 
+/*
+// тест #1
 private val inputRateLimiter = SlidingWindowRateLimiter(
-    rate = 110,
+    rate = 11,
     window = Duration.ofSeconds(1),
+)
+*/
+
+// тест #2 / #3
+private val inputRateLimiter = TokenBucketRateLimiter(
+    rate = 11,
+    bucketMaxCapacity = 150,
+    window = 1,
+    timeUnit = TimeUnit.SECONDS
 )
