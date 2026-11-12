@@ -29,6 +29,9 @@ class PaymentExternalSystemAdapterImpl(
 
         val emptyBody = RequestBody.create(null, ByteArray(0))
         val mapper = ObjectMapper().registerKotlinModule()
+
+        private const val MAX_ATTEMPTS = 3
+        private const val RETRY_DELAY_MS = 100L
     }
 
     private val serviceName = properties.serviceName
@@ -60,51 +63,61 @@ class PaymentExternalSystemAdapterImpl(
 
         inFlight.acquire()
         rateLimiter.tickBlocking()
+
         try {
-            val request = Request.Builder().run {
-                url("http://$paymentProviderHostPort/external/process?serviceName=$serviceName&token=$token&accountName=$accountName&transactionId=$transactionId&paymentId=$paymentId&amount=$amount")
-                post(emptyBody)
-            }.build()
+            var attempt = 0
+            var finalSuccess = false
+            var finalReason: String? = null
 
-            client.newCall(request).execute().use { response ->
-                val body = try {
-                    mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)
+            while (attempt < MAX_ATTEMPTS && !finalSuccess) {
+                attempt++
+                try {
+                    val request = Request.Builder().run {
+                        url("http://$paymentProviderHostPort/external/process?serviceName=$serviceName&token=$token&accountName=$accountName&transactionId=$transactionId&paymentId=$paymentId&amount=$amount")
+                        post(emptyBody)
+                    }.build()
+
+                    val body = client.newCall(request).execute().use { response ->
+                        try {
+                            mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)
+                        } catch (e: Exception) {
+                            logger.error("[$accountName] [ERROR] Parse failed, attempt $attempt, txId: $transactionId", e)
+                            ExternalSysResponse(transactionId.toString(), paymentId.toString(), false, e.message)
+                        }
+                    }
+
+                    logger.warn("[$accountName] Payment processed for txId: $transactionId, payment: $paymentId, attempt: $attempt, succeeded: ${body.result}, message: ${body.message}")
+
+                    if (body.result) {
+                        finalSuccess = true
+                        finalReason = body.message
+                    } else if (body.message?.contains("Temporary", ignoreCase = true) == true) {
+                        logger.warn("[$accountName] Temporary error, retrying (attempt $attempt/$MAX_ATTEMPTS)")
+                        finalReason = body.message
+                        if (attempt < MAX_ATTEMPTS) Thread.sleep(RETRY_DELAY_MS)
+                    } else {
+                        finalReason = body.message
+                        break
+                    }
+                } catch (e: SocketTimeoutException) {
+                    logger.warn("[$accountName] Timeout, attempt $attempt/$MAX_ATTEMPTS", e)
+                    finalReason = "Request timeout."
+                    if (attempt < MAX_ATTEMPTS) Thread.sleep(RETRY_DELAY_MS)
                 } catch (e: Exception) {
-                    logger.error("[$accountName] [ERROR] Payment processed for txId: $transactionId, payment: $paymentId, result code: ${response.code}, reason: ${response.body?.string()}")
-                    ExternalSysResponse(transactionId.toString(), paymentId.toString(),false, e.message)
-                }
-
-                logger.warn("[$accountName] Payment processed for txId: $transactionId, payment: $paymentId, succeeded: ${body.result}, message: ${body.message}")
-
-                if (body.result) {
-                    paymentMetrics.processedSuccess()
-                } else {
-                    paymentMetrics.processedFailure(body.message ?: "unknown")
-                }
-
-                // Здесь мы обновляем состояние оплаты в зависимости от результата в базе данных оплат.
-                // Это требуется сделать ВО ВСЕХ ИСХОДАХ (успешная оплата / неуспешная / ошибочная ситуация)
-                paymentESService.update(paymentId) {
-                    it.logProcessing(body.result, now(), transactionId, reason = body.message)
+                    logger.error("[$accountName] Unexpected error, attempt $attempt, txId: $transactionId", e)
+                    finalReason = e.message
+                    break
                 }
             }
-        } catch (e: Exception) {
-            when (e) {
-                is SocketTimeoutException -> {
-                    logger.error("[$accountName] Payment timeout for txId: $transactionId, payment: $paymentId", e)
-                    paymentMetrics.processedFailure("timeout")
-                    paymentESService.update(paymentId) {
-                        it.logProcessing(false, now(), transactionId, reason = "Request timeout.")
-                    }
-                }
 
-                else -> {
-                    logger.error("[$accountName] Payment failed for txId: $transactionId, payment: $paymentId", e)
-                    paymentMetrics.processedFailure("error")
-                    paymentESService.update(paymentId) {
-                        it.logProcessing(false, now(), transactionId, reason = e.message)
-                    }
-                }
+            if (finalSuccess) {
+                paymentMetrics.processedSuccess()
+            } else {
+                paymentMetrics.processedFailure(finalReason ?: "max retries exceeded")
+            }
+
+            paymentESService.update(paymentId) {
+                it.logProcessing(finalSuccess, now(), transactionId, reason = finalReason)
             }
         } finally {
             inFlight.release()
