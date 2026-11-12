@@ -40,13 +40,13 @@ class OrderPayer {
     }
 
     private val paymentExecutor = ThreadPoolExecutor(
-        110,
-        110,
+        15,
+        15,
         0L,
         TimeUnit.MILLISECONDS,
-        LinkedBlockingQueue(150),
+        LinkedBlockingQueue(200), // 32
         NamedThreadFactory("payment-submission-executor"),
-        CallerBlockingRejectedExecutionHandler()
+        ThreadPoolExecutor.AbortPolicy() //CallerBlockingRejectedExecutionHandler()
     )
 
     fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
