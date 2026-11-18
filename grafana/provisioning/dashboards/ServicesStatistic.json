@@ -723,6 +723,238 @@
           ],
           "title": "Payment executor queue size",
           "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 20 },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 298 },
+          "id": 202,
+          "options": {
+            "legend": {
+              "calcs": ["max", "mean", "lastNotNull"],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true
+            },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "sum by (attempt, reason) (rate(payment_retry_total{reason!=\"init\"}[30s]))",
+              "legendFormat": "{{attempt}} - {{reason}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Retry attempts per second",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0 },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 306 },
+          "id": 204,
+          "options": {
+            "legend": {
+              "calcs": ["max", "mean"],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(payment_external_call_duration_seconds_bucket{outcome=\"success\"}[1m])))",
+              "legendFormat": "p50",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.9, sum by (le) (rate(payment_external_call_duration_seconds_bucket{outcome=\"success\"}[1m])))",
+              "legendFormat": "p90",
+              "refId": "B"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(payment_external_call_duration_seconds_bucket{outcome=\"success\"}[1m])))",
+              "legendFormat": "p95",
+              "refId": "C"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(payment_external_call_duration_seconds_bucket{outcome=\"success\"}[1m])))",
+              "legendFormat": "p99",
+              "refId": "D"
+            }
+          ],
+          "title": "External call latency, successful calls (p50/p90/p95/p99)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 20, "stacking": { "mode": "normal", "group": "A" } },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 306 },
+          "id": 205,
+          "options": {
+            "legend": {
+              "calcs": ["max", "mean"],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "sum by (outcome) (rate(payment_external_call_duration_seconds_count[30s]))",
+              "legendFormat": "{{outcome}}",
+              "refId": "A"
+            }
+          ],
+          "title": "External calls per second by outcome",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 2,
+              "min": 0
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 315 },
+          "id": 206,
+          "options": {
+            "displayMode": "gradient",
+            "orientation": "horizontal",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "showUnfilled": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.5, sum by (le) (increase(payment_external_call_duration_seconds_bucket[$__range])))",
+              "legendFormat": "p50",
+              "instant": true,
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.75, sum by (le) (increase(payment_external_call_duration_seconds_bucket[$__range])))",
+              "legendFormat": "p75",
+              "instant": true,
+              "refId": "B"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.8, sum by (le) (increase(payment_external_call_duration_seconds_bucket[$__range])))",
+              "legendFormat": "p80",
+              "instant": true,
+              "refId": "C"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.85, sum by (le) (increase(payment_external_call_duration_seconds_bucket[$__range])))",
+              "legendFormat": "p85",
+              "instant": true,
+              "refId": "D"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.88, sum by (le) (increase(payment_external_call_duration_seconds_bucket[$__range])))",
+              "legendFormat": "p88",
+              "instant": true,
+              "refId": "E"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.9, sum by (le) (increase(payment_external_call_duration_seconds_bucket[$__range])))",
+              "legendFormat": "p90",
+              "instant": true,
+              "refId": "F"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "histogram_quantile(0.95, sum by (le) (increase(payment_external_call_duration_seconds_bucket[$__range])))",
+              "legendFormat": "p95",
+              "instant": true,
+              "refId": "G"
+            }
+          ],
+          "title": "External call latency percentiles, all calls, whole range",
+          "type": "bargauge"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+          "fieldConfig": {
+            "defaults": {
+              "decimals": 0
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Avg attempts per payment" },
+                "properties": [ { "id": "decimals", "value": 2 } ]
+              }
+            ]
+          },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 315 },
+          "id": 207,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "horizontal",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "value_and_name"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "round(sum(increase(payment_retry_total{reason!=\"init\"}[$__range])))",
+              "legendFormat": "Retries total",
+              "instant": true,
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "round(sum(increase(payment_external_call_duration_seconds_count[$__range])))",
+              "legendFormat": "External calls total",
+              "instant": true,
+              "refId": "B"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+              "expr": "sum(increase(payment_attempts_per_payment_sum[$__range])) / sum(increase(payment_attempts_per_payment_count[$__range]))",
+              "legendFormat": "Avg attempts per payment",
+              "instant": true,
+              "refId": "C"
+            }
+          ],
+          "title": "Retries summary (whole range)",
+          "type": "stat"
         }
       ],
       "title": "General",
