@@ -33,9 +33,10 @@ class PaymentExternalSystemAdapterImpl(
         val emptyBody = RequestBody.create(null, ByteArray(0))
         val mapper = ObjectMapper().registerKotlinModule()
 
-        private const val ATTEMPT_TIMEOUT_MS = 1300L
+        private const val ATTEMPT_TIMEOUT_MS = 1500L
         private const val MIN_ATTEMPT_MS = 1100L
         private const val SAFETY_MARGIN_MS = 100L
+        private const val NETWORK_MARGIN_MS = 400L
         private const val MAX_ATTEMPTS = 5
         private const val BASE_BACKOFF_MS = 50L
         private const val MAX_BACKOFF_MS = 500L
@@ -131,7 +132,7 @@ class PaymentExternalSystemAdapterImpl(
 
     private fun callOnce(paymentId: UUID, transactionId: UUID, amount: Int, timeoutMs: Long): AttemptResult {
         val request = Request.Builder().run {
-            url("http://$paymentProviderHostPort/external/process?serviceName=$serviceName&token=$token&accountName=$accountName&transactionId=$transactionId&paymentId=$paymentId&amount=$amount")
+            url("http://$paymentProviderHostPort/external/process?serviceName=$serviceName&token=$token&accountName=$accountName&transactionId=$transactionId&paymentId=$paymentId&amount=$amount&timeout=${Duration.ofMillis(timeoutMs - NETWORK_MARGIN_MS)}")
             post(emptyBody)
         }.build()
 
@@ -145,6 +146,7 @@ class PaymentExternalSystemAdapterImpl(
                 val result: AttemptResult = when {
                     code == 429 -> AttemptResult.Retryable("http_429", parseRetryAfter(response.header("Retry-After")))
                     code == 500 || code == 502 || code == 503 || code == 504 -> AttemptResult.Retryable("http_$code")
+                    code == 408 -> AttemptResult.Retryable("server_timeout")
                     code in 400..499 -> AttemptResult.Fatal("http_$code")
                     else -> {
                         val body = try {
@@ -180,7 +182,7 @@ class PaymentExternalSystemAdapterImpl(
             msg.contains("temporary", true) || msg.contains("timeout", true) || msg.contains("timed out", true))
 
     private fun backoff(reason: String, attempt: Int): Long {
-        if (reason == "client_timeout") return 0
+        if (reason == "client_timeout" || reason == "server_timeout") return 0
         val exp = minOf(MAX_BACKOFF_MS, BASE_BACKOFF_MS * (1L shl (attempt - 1)))
         return exp / 2 + ThreadLocalRandom.current().nextLong(exp / 2 + 1)
     }
